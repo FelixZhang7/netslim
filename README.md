@@ -130,7 +130,7 @@ sh experiment-vgg11.sh
 sh experiment-vgg11s.sh % simplified VGG-11 by replacing classifier with a Linear
    ```
 
-### DenseNet-121
+### DenseNet-63
 
    ```shell
 sh experiment-densenet.sh
