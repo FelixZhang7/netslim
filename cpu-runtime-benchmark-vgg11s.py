@@ -58,9 +58,9 @@ for _ in tqdm(range(loops)):
     random.shuffle(packs)
     for pack in packs:
         pack_name, net, input_name, run_fn = pack
-        t = time.time()
+        t = time.perf_counter()
         run_fn(net, input_name, n=iters)
-        total_t[pack_name] += time.time() - t
+        total_t[pack_name] += time.perf_counter() - t
 
 for k, v in total_t.items():
     print("FPS of {}: {}".format(k, loops*iters/v))
