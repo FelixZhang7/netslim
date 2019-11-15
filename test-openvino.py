@@ -29,12 +29,12 @@ exec_net = ie.load_network(network=net, device_name="CPU")
 
 correct = 0
 with torch.no_grad():
-    t_start = time.time()
+    t_start = time.perf_counter()
     for data, target in test_loader:
         outputs = exec_net.infer({input_name: data.numpy()})
         output = outputs[output_name][0]
         correct += numpy.argmax(output) == target.item()
-    t_all = time.time() - t_start
+    t_all = time.perf_counter() - t_start
 
 accuracy = 100. * float(correct) / float(len(test_loader.dataset))
 print("Accuracy: {}/{} ({:.2f}%)\n".format(correct, len(test_loader.dataset), accuracy))
