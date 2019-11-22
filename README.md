@@ -20,6 +20,17 @@ It is supposed to support user defined models with Convolution(groups=1)/Linear 
 
 <font size=2> \* ***DataParalell*** is not supported </font>
 
+## Known Issue
+This code depends on traced graph by [TorchScript](https://pytorch.org/docs/stable/jit.html), so any graph without an explicit module name will fail. For example:
+
+   ```python
+   def foward(self, x)
+       ...
+       for name, child in self.backbone.named_children():
+           x = child(x)
+       ...
+   ```
+
 ## Results on CIFAR-100
 
 ### Accuracy (%)
