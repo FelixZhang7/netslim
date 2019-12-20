@@ -6,7 +6,7 @@ NORM_LAYER_KEYWORDS = ["batch_norm", "group_norm", "instance_norm"]
 PRUNABLE_LAYER_KEYWORDS = ["convolution", "addmm"]  # does not support groups > 1 for conv
 PASS_KEYWORDS = ["relu", "leaky_relu", "sigmoid", "tanh",
                  "pool", "pad", "dropout",
-                 "view", ]  # and more .. does not support concat
+                 "view", "flatten"]  # and more .. does not support concat
 OTHER_OP_KEYWORDS = ["cat"]
 OTHER_PRIM_KEYWORDS = ["ListConstruct"]  # for cat
 NO_EFFECT_KEYWORDS = ["size", ]
