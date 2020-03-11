@@ -55,6 +55,7 @@ common_layer_pattern = re.compile(
     )
 )
 tensor_op_pattern = re.compile(r".*= (aten::\w+)\(.*, scope: .+")
+add_op_pattern = re.compile(r".*= (aten::add_)\(.*, scope: .+")
 
 
 def get_node_str(node):
@@ -93,6 +94,7 @@ def parse_output_shape(x):
 def get_norm_layer_io(graph):
     out2nl = {}
     in2nl = {}
+    bn_names = []
     for node in graph.nodes():
         node_str = get_node_str(node)
         if norm_layer_pattern.match(node_str):
@@ -101,7 +103,8 @@ def get_norm_layer_io(graph):
             input = parse_input_names(node_str)[0]
             out2nl[output] = bn_name
             in2nl[input] = bn_name
-    return out2nl, in2nl
+            bn_names.append(bn_name)
+    return out2nl, in2nl, bn_names
 
 
 def reverse_search_dict(val, target_dict):
@@ -124,7 +127,7 @@ def get_input_count(graph):
     return input_count
 
 
-def get_pruning_layers(model, input_shape):
+def get_pruning_layers(model, input_shape, device=None):
     """parse the model graph, and generate mapping to BNs
 
     Arguments:
@@ -138,12 +141,14 @@ def get_pruning_layers(model, input_shape):
 
     # 0 trace graph with torch scripts
     inputs = torch.randn(2, *input_shape)   # 2 for BatchNorm1d
+    if device:
+        inputs = inputs.to(device)
     trace, _ = torch.jit.get_trace_graph(model, args=(inputs,))
     graph = trace.graph()
     input_count = get_input_count(graph)
 
     # 1 get norm layers and their direct outputs/inputs
-    output2norm, input2norm = get_norm_layer_io(graph)
+    output2norm, input2norm, norm_names = get_norm_layer_io(graph)
 
     # 2 find & update all possible outputs/inputs that with per-channel operations only
     # assume for a per-channel operation layer, it has only one input/output
@@ -205,7 +210,9 @@ def get_pruning_layers(model, input_shape):
     # 3 identify layers need to be pruned
     succ_layers = {}    # succeeding layers
     prec_layers = {}    # preceding layers
+    shortcut_source_names = []
     risky_layer_names = []
+    risky_skip_connect_names = []
     for node in graph.nodes():
         node_str = get_node_str(node)
         if tensor_op_pattern.match(node_str):
@@ -223,6 +230,11 @@ def get_pruning_layers(model, input_shape):
                             succ_layers[source_layer_name] = [layer_name, ]
                     if not allowed_layer_pattern.match(node_str):
                         risky_layer_names.append(source_layer_name)
+                    if add_op_pattern.match(node_str):
+                        risky_skip_connect_names.append(source_layer_name)
+                    if norm_layer_pattern.match(node_str):
+                        if source_layer_name in norm_names:
+                            shortcut_source_names.append(source_layer_name)
 
             if output_name in input2norm:
                 layer_name = parse_module_name(node_str)
@@ -244,14 +256,24 @@ def get_pruning_layers(model, input_shape):
 
     risky_layer_names = list(set(risky_layer_names))
     for risky_layer_name in risky_layer_names:
-        if risky_layer_name in succ_layers:
-            succ_layers.pop(risky_layer_name)
+        # supposed to be safe because prunable BNs is the intersection of prec & succ
+        #if risky_layer_name in succ_layers:
+        #    succ_layers.pop(risky_layer_name)
         if risky_layer_name in prec_layers:
             prec_layers.pop(risky_layer_name)
 
-    return prec_layers, succ_layers
+    risky_skip_connect_names = list(set(risky_skip_connect_names))
+    shortcut_source_names = list(set(shortcut_source_names))
+
+    for very_risky_name in risky_skip_connect_names+shortcut_source_names:
+        if very_risky_name in succ_layers:
+            succ_layers.pop(very_risky_name)
+
+    return prec_layers, succ_layers, norm_names
 
 
 def get_norm_layer_names(model, input_shape):
-    prec_layers, succ_layers = get_pruning_layers(model, input_shape)
-    return list(set(succ_layers) & set(prec_layers))
+    prec_layers, succ_layers, norm_layer_names = get_pruning_layers(model, input_shape)
+    prunable_norm_layer_names = list(set(succ_layers) & set(prec_layers))
+    maskable_norm_layer_names = list(set(succ_layers) - set(prec_layers))
+    return prunable_norm_layer_names, maskable_norm_layer_names, norm_layer_names

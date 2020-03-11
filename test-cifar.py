@@ -1,29 +1,28 @@
 import os
-import argparse
 import time
+import argparse
 import torch
+import torch.nn as nn
+import torch.optim as optim
 from torchvision import transforms
 from torchvision.datasets import cifar
-from networks import resnet18, vgg11, vgg11s, densenet63
+
+from networks import cifar_archs as archs
 from netslim import load_pruned_model
 
 import torch.backends.cudnn as cudnn
 cudnn.benchmark = True
 
-archs = {
-    "resnet18": resnet18, 
-    "vgg11": vgg11, "vgg11s": vgg11s, 
-    "densenet63": densenet63
-}
-
 # Training settings
-parser = argparse.ArgumentParser(description='PyTorch Cifar-100 Example for Test Pruned Model')
+parser = argparse.ArgumentParser(description='PyTorch Cifar Example for Test Pruned Model')
 parser.add_argument('--test-batch-size', type=int, default=50, metavar='N',
                     help='input batch size for testing (default: 50)')
 parser.add_argument('--resume-path', default='',
                     help='path to a trained model weight')
 parser.add_argument('--arch', default='resnet18',
                     help='network architecture')
+parser.add_argument('--cifar10', action='store_true', default=False, 
+                    help='Train CIFAR-10, by default the script train cifar-100')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disables CUDA training')
 args = parser.parse_args()
@@ -31,18 +30,20 @@ args.cuda = not args.no_cuda and torch.cuda.is_available()
 
 device = torch.device('cuda' if args.cuda else 'cpu')
 
-kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 normalize = transforms.Normalize(mean=[0.4914, 0.482, 0.4465],
                                  std=[0.2023, 0.1994, 0.2010])
 
+dataset, datapath = (cifar.CIFAR10, "./datasets/cifar-10") if args.cifar10 else (cifar.CIFAR100, "./datasets/cifar-100")
+
 test_loader = torch.utils.data.DataLoader(
-    cifar.CIFAR100('./cifar-100', train=False, transform=transforms.Compose([
-                       transforms.ToTensor(),
-                       normalize
-                   ])),
+    dataset(datapath, train=False, transform=transforms.Compose([
+        transforms.ToTensor(),
+        normalize
+    ])),
     batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
-model = archs[args.arch](num_classes=100)
+model = archs[args.arch](num_classes=10 if args.cifar10 else 100)
 pruned_weights = torch.load(args.resume_path)
 model = load_pruned_model(model, pruned_weights).to(device)
 
@@ -59,7 +60,7 @@ with torch.no_grad():
     t_all = time.time() - t_start
 
 accuracy = 100. * float(correct) / float(len(test_loader.dataset))
-print("Accuracy: {}/{} ({:.2f}%)\n".format(correct, len(test_loader.dataset), accuracy))
+print("Accuracy: {}/{} ({:.2f}%)".format(correct, len(test_loader.dataset), accuracy))
 print("Total time: {:.2f} s".format(t_all))
 #if args.test_batch_size == 1:
 #    print("Estimated FPS: {:.2f}".format(1/(t_all/len(test_loader))))
