@@ -1,5 +1,7 @@
 # Channel Pruning: Network Slimming & Optimal Thresholding
 
+![under-over-pruning](https://raw.githubusercontent.com/yeyun11/netslim/nonsense/fig-01.jpg)
+
 This repo implements two channel pruning methods based on the scaling factors of Batch Normalization (BN) layers in [PyTorch](https://pytorch.org):  
 
 1. **Network Slimming**. By training networks with L1 penalty, and then prune channels with smaller scaling factors of BN. Details are described in:
@@ -7,8 +9,6 @@ This repo implements two channel pruning methods based on the scaling factors of
    [**Learning Efficient Convolutional Networks Through Network Slimming**](http://openaccess.thecvf.com/content_ICCV_2017/papers/Liu_Learning_Efficient_Convolutional_ICCV_2017_paper.pdf)
 
 2. **Optimal Thresholding**. Inspired by Network Slimming, we proposed a extremely simple yet effective method, termed Optimal Thresholding, to avoid the over- and under-pruning. 
-
-   ![under-over-pruning](https://raw.githubusercontent.com/yeyun11/netslim/nonsense/fig-01.jpg)
 
    It works on scaling factors too, but prune negligible channels considering the distribution of scaling factors rather than the magnitudes across the whole network. Compared to Network Slimming, it shows advantages particularly for models with very high pruned percentage. Details can be found in the tech report:
 
