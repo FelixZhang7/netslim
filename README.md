@@ -129,7 +129,7 @@ Examples to prune ResNet/DenseNet with channel selection and branch removing are
 
 **Evaluating FLOPs**. For VGG or other similar architectures, we use [**thop**](https://github.com/Lyken17/pytorch-OpCounter) to evaluate FLOPs. For ResNet/DenseNet, changes are needed to calculate the correct FLOPs. As an example, we made the following changes to **thop**:
 
-1. In ***count_hooks.py***, for *count_convNd* and *count_bn*, add conditional check if the input are all zeros. For example:
+1. For *count_convNd* and *count_bn*, add a conditional check if the input are all zeros. For example:
 
    ```python
    def count_convNd(m, x, y):
@@ -141,7 +141,7 @@ Examples to prune ResNet/DenseNet with channel selection and branch removing are
            # ...
    ```
    
-2. For channel selection, we implemented with *MaskedBatchNorm* in [**prune.py**](https://github.com/yeyun11/netslim/blob/master/netslim/prune.py). Corresponding hook has to be defined in ***count_hooks.py***:
+2. For channel selection, we implemented with *MaskedBatchNorm* in [**prune.py**](https://github.com/yeyun11/netslim/blob/master/netslim/prune.py). Corresponding hook has to be defined:
 
    ```python
    # ...
@@ -153,17 +153,9 @@ Examples to prune ResNet/DenseNet with channel selection and branch removing are
        m.total_ops += torch.Tensor([int(total_ops)])
    ```
 
-   And registered in profile.py:
-
-   ```python
-   # ...
-   register_hooks = {
-       # ...
-       MaskedBatchNorm: count_masked_bn, 
-       # ...
-   ```
-
-3. In ***profile.py***, for *count_convNd* and *count_bn*, add conditional check if the input are all zeros. For example:
+3. Register hooks using *custom_ops* argument in [*profile*](https://github.com/Lyken17/pytorch-OpCounter/blob/master/thop/profile.py).
+   
+4. In [***profile.py***](https://github.com/Lyken17/pytorch-OpCounter/blob/master/thop/profile.py), for *count_convNd* and *count_bn*, add conditional check if the input are all zeros. For example:
 
    ```python
    # ...
