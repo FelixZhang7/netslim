@@ -50,14 +50,14 @@ model = load_pruned_model(model, pruned_weights).to(device)
 model.eval()
 correct = 0
 with torch.no_grad():
-    t_start = time.time()
+    t_start = time.perf_counter()
     for data, target in test_loader:
         if args.cuda:
             data, target = data.to(device), target.to(device)
         output = model(data)
         pred = output.max(1, keepdim=True)[1]   # get the index of the max log-probability
         correct += pred.eq(target.data.view_as(pred)).cpu().sum()
-    t_all = time.time() - t_start
+    t_all = time.perf_counter() - t_start
 
 accuracy = 100. * float(correct) / float(len(test_loader.dataset))
 print("Accuracy: {}/{} ({:.2f}%)".format(correct, len(test_loader.dataset), accuracy))
